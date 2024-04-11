@@ -2,7 +2,7 @@ import uvicorn
 import bcrypt
 import json
 import re
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -102,8 +102,21 @@ class DeleteAccountRequest(BaseModel):
     username: str
     password: str
 
+# Load API keys from file
+def load_api_keys():
+    with open("api_keys.json", "r") as f:
+        return json.load(f)
+
+# Check if API key is valid
+def authenticate_api_key(api_key):
+    api_keys = load_api_keys()
+    return api_key in api_keys
+
 @app.post("/register")
-def register(request: RegisterRequest):
+def register(request: RegisterRequest, x_api_key: str = Header(...)):
+    if not authenticate_api_key(x_api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+    
     username = request.username
     password = request.password
     email = request.email
@@ -133,7 +146,10 @@ def login(request: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
 @app.delete("/delete_account")
-def delete_account(request: DeleteAccountRequest):
+def delete_account(request: DeleteAccountRequest, x_api_key: str = Header(...)):
+    if not authenticate_api_key(x_api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+    
     username = request.username.lower()
     password = request.password
     validate_obj = Validate()
